@@ -18,6 +18,7 @@ struct fb_fix_screeninfo finfo;
 long int screensize = 0;
 char *fbp = 0;
 long int location = 0;
+int **a;
 
 // Draw point
 
@@ -92,9 +93,11 @@ void bresenham(int x0, int y0, int x1, int y1, int c1, int c2, int c3) {
 
 // Draw shape
 
-void drawShape(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3) {
+void drawShape(int n, int c1, int c2, int c3) {
     a[n][0]=a[0][0];
     a[n][1]=a[0][1];
+   
+    
     for(int i=0;i<n;i++) {
         bresenham(a[i][0],a[i][1],a[i+1][0],a[i+1][1],c1,c2,c3);
     }
@@ -122,11 +125,11 @@ int isSameColor(int x0, int y0, int c11, int c12, int c13) {
 
 // Scan Line
 
-void scanLine(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3) {
+void scanLine(int n, int c1, int c2, int c3) {
     int i,j,k,gd,gm,dy,dx;
     int x,y,temp;
-    int xi[MAX_VERTEX];
-    float slope[MAX_VERTEX];
+    int xi[n];
+    float slope[n];
 
     // Initiate Variables
     a[n][0]=a[0][0];
@@ -169,7 +172,7 @@ void scanLine(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3) {
     }
 }
 
-void dilatasi(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3, int factor, int centerX, int centerY, int *stillAvailable) {
+void dilatasi(int **a, int n, int c1, int c2, int c3, int factor, int centerX, int centerY, int *stillAvailable) {
     int i;
     for (i = 0; i < n; i++) {
         if (a[i][0]*factor - centerX >= xResolution) {
@@ -208,20 +211,50 @@ void rotasi(int centerX, int centerY, int dimension, int isX, int c1, int c2, in
     }
 }
 
-// Main
+void loadFile(char* filename, int *size){
+    FILE *fp;  
+     
+    fp = fopen(filename, "r");
+    fscanf(fp, "%d", size);
 
+    a = (int **)malloc((*size+1) * sizeof(int *));
+    
+    for (int i=0; i<(*size+1); i++)
+         a[i] = (int *)malloc(2 * sizeof(int));
+
+    int i = 0;
+    int j = 0;
+
+    int temp;
+    while(fscanf(fp, "%d", &temp)!=EOF){  
+        if(j%2==0){
+            a[i][0] = temp;
+        }
+        else{
+            a[i][1] = temp;
+            i++;
+        }
+        j++;  
+    }
+    
+    fclose(fp); 
+}
+
+// Main
 int main(int argc, char **argv) {
     // Input resolution
-    if (argc != 6) {
-        fprintf(stderr, "Please input resolution, red, green, and blue\n");
+    if (argc != 7) {
+        fprintf(stderr, "Please input filename resolution, red, green, and blue\n");
         fprintf(stderr, "Example: %s 1366 768 255 255 255\n", argv[0]);
         return -1;
     }
-    xResolution = atoi(argv[1]);
-    yResolution = atoi(argv[2]);
-    int red = atoi(argv[3]);
-    int green = atoi(argv[4]);
-    int blue = atoi(argv[5]);
+
+    char *filename = argv[1];
+    xResolution = atoi(argv[2]);
+    yResolution = atoi(argv[3]);
+    int red = atoi(argv[4]);
+    int green = atoi(argv[5]);
+    int blue = atoi(argv[6]);
 
     // Open the file for reading and writing
     fbfd = open("/dev/fb0", O_RDWR);
@@ -257,18 +290,12 @@ int main(int argc, char **argv) {
     }
     printf("The framebuffer device was mapped to memory successfully.\n");
 
-    // Figure out where in memory to put the pixel
-    int a[MAX_VERTEX][MAX_VERTEX];
-    a[0][0] = 658;
-    a[0][1] = 359;
-    a[1][0] = 708;
-    a[1][1] = 359;
-    a[2][0] = 708;
-    a[2][1] = 409;
-    a[3][0] = 658;
-    a[3][1] = 409;
-    //drawShape(a,4,255,255,255);
-    //scanLine(a,4,blue,green,red);
+    
+    int size;
+
+    loadFile(filename, &size);
+    drawShape(size,255,255,255);
+    scanLine(size,blue,green,red);
 
     // int stillAvailable = 1;
     // int i;
@@ -287,12 +314,12 @@ int main(int argc, char **argv) {
     //     usleep(1000000);
     // }
 
-    int isX = 0;
-    for (;;) {
-        rotasi(683,384,100,isX,blue,green,red);
-        usleep(150000);
-        isX++;
-    }
+    // int isX = 0;
+    // for (;;) {
+    //     rotasi(683,384,100,isX,blue,green,red);
+    //     usleep(150000);
+    //     isX++;
+    // }
 
     munmap(fbp, screensize);
     sleep(5);
