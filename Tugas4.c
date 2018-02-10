@@ -93,95 +93,118 @@ void bresenham(int x0, int y0, int x1, int y1, int c1, int c2, int c3) {
 // Draw shape
 
 void drawShape(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3) {
-	a[n][0]=a[0][0];
-	a[n][1]=a[0][1];
-	for(int i=0;i<n;i++) {
-		bresenham(a[i][0],a[i][1],a[i+1][0],a[i+1][1],c1,c2,c3);
-	}
+    a[n][0]=a[0][0];
+    a[n][1]=a[0][1];
+    for(int i=0;i<n;i++) {
+        bresenham(a[i][0],a[i][1],a[i+1][0],a[i+1][1],c1,c2,c3);
+    }
 }
 
 // Check color similarity
 
 int isSameColor(int x0, int y0, int c11, int c12, int c13) {
-	int loc = (x0+vinfo.xoffset) * (vinfo.bits_per_pixel/8) + 
+    int loc = (x0+vinfo.xoffset) * (vinfo.bits_per_pixel/8) + 
             (y0+vinfo.yoffset) * finfo.line_length;
-	int c01 = *(fbp + loc);
-	if (c01 < 0) {
-		c01 += 256;
-	}
-	int c02 = *(fbp + loc + 1);
-	if (c02 < 0) {
-		c02 += 256;
-	}
-	int c03 = *(fbp + loc + 2);
-	if (c03 < 0) {
-		c03 += 256;
-	}
-	return (c01 == c11 && c02 == c12 && c03 == c13);
+    int c01 = *(fbp + loc);
+    if (c01 < 0) {
+        c01 += 256;
+    }
+    int c02 = *(fbp + loc + 1);
+    if (c02 < 0) {
+        c02 += 256;
+    }
+    int c03 = *(fbp + loc + 2);
+    if (c03 < 0) {
+        c03 += 256;
+    }
+    return (c01 == c11 && c02 == c12 && c03 == c13);
 }
 
 // Scan Line
 
 void scanLine(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3) {
-	int i,j,k,gd,gm,dy,dx;
-	int x,y,temp;
-	int xi[MAX_VERTEX];
-	float slope[MAX_VERTEX];
+    int i,j,k,gd,gm,dy,dx;
+    int x,y,temp;
+    int xi[MAX_VERTEX];
+    float slope[MAX_VERTEX];
 
-	// Initiate Variables
-	a[n][0]=a[0][0];
-	a[n][1]=a[0][1];
-	
-	// Calculate slope
-	for(i=0;i<n;i++) {
-		dy=a[i+1][1]-a[i][1];
-		dx=a[i+1][0]-a[i][0];
-		if(dy==0) slope[i]=1.0;
-		if(dx==0) slope[i]=0.0;
-		if((dy!=0)&&(dx!=0)) {
-			slope[i]=(float) dx/dy;
-		}
-	}
+    // Initiate Variables
+    a[n][0]=a[0][0];
+    a[n][1]=a[0][1];
+    
+    // Calculate slope
+    for(i=0;i<n;i++) {
+        dy=a[i+1][1]-a[i][1];
+        dx=a[i+1][0]-a[i][0];
+        if(dy==0) slope[i]=1.0;
+        if(dx==0) slope[i]=0.0;
+        if((dy!=0)&&(dx!=0)) {
+            slope[i]=(float) dx/dy;
+        }
+    }
 
-	// Fill color
-	for(y=0;y<yResolution;y++) {
-		k=0;
-		// Initiate xi
-		for(i=0;i<n;i++) {
-			if (((a[i][1]<=y)&&(a[i+1][1]>y)) || ((a[i][1]>y)&&(a[i+1][1]<=y))) {
-				xi[k]=(int)(a[i][0]+slope[i]*(y-a[i][1]));
-				k++;
-			}
-		}
-		// Sort xi
-		for(j=0;j<k-1;j++)
-			for(i=0;i<k-1;i++) {
-				if(xi[i]>xi[i+1]) {
-					temp=xi[i];
-					xi[i]=xi[i+1];
-					xi[i+1]=temp;
-				}
-			}
-		// Fill
-		for(i=0;i<k;i+=2) {
-			bresenham(xi[i],y,xi[i+1]+1,y,c1,c2,c3);
-		}
-	}
+    // Fill color
+    for(y=0;y<yResolution;y++) {
+        k=0;
+        // Initiate xi
+        for(i=0;i<n;i++) {
+            if (((a[i][1]<=y)&&(a[i+1][1]>y)) || ((a[i][1]>y)&&(a[i+1][1]<=y))) {
+                xi[k]=(int)(a[i][0]+slope[i]*(y-a[i][1]));
+                k++;
+            }
+        }
+        // Sort xi
+        for(j=0;j<k-1;j++)
+            for(i=0;i<k-1;i++) {
+                if(xi[i]>xi[i+1]) {
+                    temp=xi[i];
+                    xi[i]=xi[i+1];
+                    xi[i+1]=temp;
+                }
+            }
+        // Fill
+        for(i=0;i<k;i+=2) {
+            bresenham(xi[i],y,xi[i+1]+1,y,c1,c2,c3);
+        }
+    }
 }
 
-void dilatasi(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3, int centerX, int centerY, int *stillAvailable) {
+void dilatasi(int a[MAX_VERTEX][MAX_VERTEX], int n, int c1, int c2, int c3, int factor, int centerX, int centerY, int *stillAvailable) {
     int i;
     for (i = 0; i < n; i++) {
-        if (a[i][0]*2 - centerX >= xResolution) {
+        if (a[i][0]*factor - centerX >= xResolution) {
             *stillAvailable = 0;
         } else {
-            a[i][0] = a[i][0] * 2 - centerX;    
+            a[i][0] = a[i][0] * factor - centerX;    
         }
-        if (a[i][1]*2 - centerY >= yResolution) {
+        if (a[i][1]*factor - centerY >= yResolution) {
             *stillAvailable = 0;
         } else {
-            a[i][1] = a[i][1] * 2 - centerY;
+            a[i][1] = a[i][1] * factor - centerY;
         }
+    }
+}
+
+// void rotasi(int a[MAX_VERTEX][MAX_VERTEX], int n, int centerX, int centerY) {
+//     int i;
+//     for (i = 0; i < n; i++) {
+//         a[i][0] = (int)((float)(a[i][0]-centerX)*sqrt(2.0)/2.0 - (float)(a[i][1]-centerY)*sqrt(2.0)/2.0) + centerX;
+//         a[i][1] = (int)((float)(a[i][0]-centerX)*sqrt(2.0)/2.0 + (float)(a[i][1]-centerY)*sqrt(2.0)/2.0) + centerY;
+//     }
+// }
+
+void rotasi(int centerX, int centerY, int dimension, int isX, int c1, int c2, int c3) {
+    if (isX%2 == 0) {
+        bresenham(centerX-dimension/2,centerY-dimension/2,centerX+dimension/2,centerY+dimension/2,0,0,0);
+        bresenham(centerX-dimension/2,centerY+dimension/2,centerX+dimension/2,centerY-dimension/2,0,0,0);
+        bresenham(centerX,centerY-dimension/2,centerX,centerY+dimension/2,c1,c2,c3);
+        bresenham(centerX-dimension/2,centerY,centerX+dimension/2,centerY,c1,c2,c3);
+    }
+    else {
+        bresenham(centerX,centerY-dimension/2,centerX,centerY+dimension/2,0,0,0);
+        bresenham(centerX-dimension/2,centerY,centerX+dimension/2,centerY,0,0,0);
+        bresenham(centerX-dimension/2,centerY-dimension/2,centerX+dimension/2,centerY+dimension/2,c1,c2,c3);
+        bresenham(centerX-dimension/2,centerY+dimension/2,centerX+dimension/2,centerY-dimension/2,c1,c2,c3);
     }
 }
 
@@ -244,38 +267,31 @@ int main(int argc, char **argv) {
     a[2][1] = 409;
     a[3][0] = 658;
     a[3][1] = 409;
-    drawShape(a,4,255,255,255);
-    scanLine(a,4,blue,green,red);
+    //drawShape(a,4,255,255,255);
+    //scanLine(a,4,blue,green,red);
 
-    int stillAvailable = 1;
-    int i;
-    // while (stillAvailable == 1) {
-    //     while (i < 4 && stillAvailable) {
-    //         if (a[i][0] >= xResolution) {
-    //             stillAvailable = 0;
-    //         }
-    //         if (a[i][1] >= yResolution) {
-    //             stillAvailable = 0;
-    //         }
-    //         i++;
-    //     }
+    // int stillAvailable = 1;
+    // int i;
+
+    // usleep(1000000);
+    // for (;;) {
+    //     scanLine(a,4,0,0,0);
+    //     // dilatasi(a,4,blue,green,red,2,683,384,&stillAvailable);
+    //     rotasi(a,4,683,384);
     //     if (stillAvailable == 1) {
-    //         dilatasi(a,4,blue,green,red);
     //         scanLine(a,4,blue,green,red);
     //     }
+    //     else {
+    //         break;
+    //     }
+    //     usleep(1000000);
     // }
 
-    usleep(1000000);
+    int isX = 0;
     for (;;) {
-        scanLine(a,4,0,0,0);
-        dilatasi(a,4,blue,green,red,683,384,&stillAvailable);
-        if (stillAvailable == 1) {
-            scanLine(a,4,blue,green,red);
-        }
-        else {
-            break;
-        }
-        usleep(1000000);
+        rotasi(683,384,100,isX,blue,green,red);
+        usleep(150000);
+        isX++;
     }
 
     munmap(fbp, screensize);
