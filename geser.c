@@ -6,7 +6,7 @@ int main(){
 	int **a;
 
 	int size; 
-	fp = fopen("plane_full.txt", "r");
+	fp = fopen("pilot.txt", "r");
 	fscanf(fp, "%d", &size);
 
 	a = (int **)malloc((size+1) * sizeof(int *));
@@ -36,7 +36,7 @@ int main(){
    	int dx, dy;
    	scanf("%d %d", &dx, &dy);
 
-   	fp = fopen("plane2.txt", "w");
+   	fp = fopen("pilot.txt", "w");
 
    	fprintf(fp, "%d\n", size);
 

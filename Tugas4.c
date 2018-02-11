@@ -33,6 +33,10 @@ int **true_copyrotor;
 
 pthread_t threads[6];
 int life = 2;
+int scale = 1;
+int centerX;
+int centerY;
+int imin, jmin;
 
 // Draw point
 
@@ -314,6 +318,19 @@ void dilatasi_rotor(int n, int c1, int c2, int c3, int factor, int centerX, int 
     }
 }
 
+void dilatasi_wheel(int n){
+	for(int i=0; i<n; i++){
+		wheel[i][0] = wheel[i][0] * scale - (scale-1)*centerX;
+		wheel[i][1] = wheel[i][1] * scale - (scale-1)*centerY;
+	}
+}
+
+void translasi_pilot(int n){
+	for(int i=0; i<n; i++){
+		pilot[i][1] = pilot[i][1] - (copy_of_a[jmin][1] - a[jmin][1]);
+	}
+}
+
 // Rotor rotation
 
 void rotasi(int centerX, int centerY) {
@@ -496,6 +513,7 @@ void findCenter(int size, int *centerX, int *centerY){
     	}
     	if(minX > a[i][0]){
     		minX = a[i][0];
+    		imin = i;
     	}
 
     	if(maxY < a[i][1]){
@@ -503,8 +521,11 @@ void findCenter(int size, int *centerX, int *centerY){
     	}
     	if(minY > a[i][1]){
     		minY = a[i][1];
+    		jmin = i;
     	}
     }
+
+    printf("%d %d\n", imin, jmin);
 
     *centerX = minX + (maxX - minX)/2;
     *centerY = minY + (maxY - minY)/2;
@@ -563,7 +584,8 @@ void bounce (int n, int gravity, int bounceCount, int c1, int c2, int c3) {
 }
 
 void *bounceWheel(void *arg) {
-    bounce(8,10,5,0,255,0);
+	dilatasi_wheel(8);
+    bounce(8,10,5,255/2,255/2,255/2);
 }
 
 // Eject pilot thread
@@ -571,21 +593,26 @@ void *bounceWheel(void *arg) {
 
 
 void *ejectPilot(void *arg) {
-    // int x = xResolution/2;
-    // int y = yResolution-20;
-    // int vox = -10;
-    // int voy = 40;
-    // int a = -2;
-    // int t = 0;
-    // while (y <= yResolution-20 && y > 20 && x > 20 && x < xResolution-20) {
-    //     drawBullet(x,y,0,0,255);
-    //     usleep(100000);
-    //     drawBullet(x,y,0,0,0);
-    //     t++;
-    //     x = xResolution/2 + vox*t;
-    //     y = yResolution-20 - voy*t - a/2*pow(t,2);
-    // }
-    scanLinePilot(22,255,0,0);
+	translasi_pilot(22);
+
+    int x = 0;
+    int y = 0;
+    int vox = -1;
+    int voy = 5;
+    int a = -2;
+    int t = 0;
+    while (pilot[11][1] <= yResolution-20 && pilot[11][1] > 20 && pilot[11][0] > 20 && pilot[11][0] < xResolution-20) {
+        scanLinePilot(22,0,0,255);
+        usleep(100000);
+        scanLinePilot(22,0,0,0);
+        t++;
+        x = vox*t;
+        y = 0 - voy*t - a/2*pow(t,2);
+        for (int i=0; i < 22; i++) {
+        	pilot[i][0] += x;
+        	pilot[i][1] += y;
+        }
+    }
 }
 
 // Shoot thread
@@ -736,35 +763,38 @@ int main(int argc, char **argv) {
     loadFilePilot("pilot.txt", &pilot_size);
 
     int stillAvailable = 1;
-    
-    int centerX;
-    int centerY;
 
     findCenter(size, &centerX, &centerY);
 
-    int i = 1;
+    // scanLine(size,blue,green,red);
+    // scanLinePilot(22, 0, 0, 255);
+
     int distance_init = 160;
     int distance = distance_init;
 
     initRotor(592,351,26);
 
     while (stillAvailable == 1) {
-        dilatasi(size,blue,green,red,i,centerX,centerY,&stillAvailable);
-        dilatasi_rotor(4,blue,green,red,i,centerX, centerY);
-        distance = distance_init*i;
+        dilatasi(size,blue,green,red,scale,centerX,centerY,&stillAvailable);
+        dilatasi_rotor(4,blue,green,red,scale,centerX, centerY);
+        distance = distance_init*scale;
 
         scanLine(size,blue,green,red);
         
         int count = 0;
 		drawRotor(blue/2,green/2,red/2,count,distance);
-		clock_t begin = clock();
+		//clock_t begin = clock();
+		time_t begin, end;
+		begin = time(NULL);
+
 		for(;;) {
 			usleep(100000);
 			drawRotor(255,255,255,count,distance);
 			count++;
+			scanLine(size,blue,green,red);
 			drawRotor(blue/2,green/2,red/2,count,distance);
-			clock_t end = clock();
-			double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+			end = time(NULL);
+			double time_spent = (double)(end - begin);
 			if (time_spent >= 0.001){
 				break;
 			}
@@ -773,7 +803,7 @@ int main(int argc, char **argv) {
     	scanLine(size,0,0,0);
     	drawRotor(0, 0, 0, 1, distance);
     	drawRotor(0, 0, 0, 2, distance);
-    	i++;
+    	scale++;
     }
 
     while(1);
