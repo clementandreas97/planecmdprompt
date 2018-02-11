@@ -12,6 +12,9 @@
 
 int xResolution;
 int yResolution;
+int blue;
+int green;
+int red;
 
 int fbfd = 0;
 struct fb_var_screeninfo vinfo;
@@ -21,13 +24,14 @@ char *fbp = 0;
 long int location = 0;
 int **a;
 int **copy_of_a;
+int **wheel;
+int **pilot;
 int **rotor;
 int **copyrotor;
 int **true_rotor;
 int **true_copyrotor;
 
-pthread_t threads[7];
-int bullets[2][2];
+pthread_t threads[6];
 int life = 2;
 
 // Draw point
@@ -132,7 +136,7 @@ int isSameColor(int x0, int y0, int c11, int c12, int c13) {
     return (c01 == c11 && c02 == c12 && c03 == c13);
 }
 
-// Scan Line
+// Plane Scan Line
 
 void scanLine(int n, int c1, int c2, int c3) {
     int i,j,k,gd,gm,dy,dx;
@@ -162,6 +166,104 @@ void scanLine(int n, int c1, int c2, int c3) {
         for(i=0;i<n;i++) {
             if (((a[i][1]<=y)&&(a[i+1][1]>y)) || ((a[i][1]>y)&&(a[i+1][1]<=y))) {
                 xi[k]=(int)(a[i][0]+slope[i]*(y-a[i][1]));
+                k++;
+            }
+        }
+        // Sort xi
+        for(j=0;j<k-1;j++)
+            for(i=0;i<k-1;i++) {
+                if(xi[i]>xi[i+1]) {
+                    temp=xi[i];
+                    xi[i]=xi[i+1];
+                    xi[i+1]=temp;
+                }
+            }
+        // Fill
+        for(i=0;i<k;i+=2) {
+            bresenham(xi[i],y,xi[i+1]+1,y,c1,c2,c3);
+        }
+    }
+}
+
+// Wheel Scan Line
+
+void scanLineWheel(int n, int c1, int c2, int c3) {
+    int i,j,k,gd,gm,dy,dx;
+    int x,y,temp;
+    int xi[n];
+    float slope[n];
+
+    // Initiate Variables
+    wheel[n][0]=wheel[0][0];
+    wheel[n][1]=wheel[0][1];
+    
+    // Calculate slope
+    for(i=0;i<n;i++) {
+        dy=wheel[i+1][1]-wheel[i][1];
+        dx=wheel[i+1][0]-wheel[i][0];
+        if(dy==0) slope[i]=1.0;
+        if(dx==0) slope[i]=0.0;
+        if((dy!=0)&&(dx!=0)) {
+            slope[i]=(float) dx/dy;
+        }
+    }
+
+    // Fill color
+    for(y=0;y<yResolution;y++) {
+        k=0;
+        // Initiate xi
+        for(i=0;i<n;i++) {
+            if (((wheel[i][1]<=y)&&(wheel[i+1][1]>y)) || ((wheel[i][1]>y)&&(wheel[i+1][1]<=y))) {
+                xi[k]=(int)(wheel[i][0]+slope[i]*(y-wheel[i][1]));
+                k++;
+            }
+        }
+        // Sort xi
+        for(j=0;j<k-1;j++)
+            for(i=0;i<k-1;i++) {
+                if(xi[i]>xi[i+1]) {
+                    temp=xi[i];
+                    xi[i]=xi[i+1];
+                    xi[i+1]=temp;
+                }
+            }
+        // Fill
+        for(i=0;i<k;i+=2) {
+            bresenham(xi[i],y,xi[i+1]+1,y,c1,c2,c3);
+        }
+    }
+}
+
+// Pilot Scan Line
+
+void scanLinePilot(int n, int c1, int c2, int c3) {
+    int i,j,k,gd,gm,dy,dx;
+    int x,y,temp;
+    int xi[n];
+    float slope[n];
+
+    // Initiate Variables
+    pilot[n][0]=pilot[0][0];
+    pilot[n][1]=pilot[0][1];
+    
+    // Calculate slope
+    for(i=0;i<n;i++) {
+        dy=pilot[i+1][1]-pilot[i][1];
+        dx=pilot[i+1][0]-pilot[i][0];
+        if(dy==0) slope[i]=1.0;
+        if(dx==0) slope[i]=0.0;
+        if((dy!=0)&&(dx!=0)) {
+            slope[i]=(float) dx/dy;
+        }
+    }
+
+    // Fill color
+    for(y=0;y<yResolution;y++) {
+        k=0;
+        // Initiate xi
+        for(i=0;i<n;i++) {
+            if (((pilot[i][1]<=y)&&(pilot[i+1][1]>y)) || ((pilot[i][1]>y)&&(pilot[i+1][1]<=y))) {
+                xi[k]=(int)(pilot[i][0]+slope[i]*(y-pilot[i][1]));
                 k++;
             }
         }
@@ -315,6 +417,70 @@ void loadFile(char* filename, int *size){
     fclose(fp);
 }
 
+// Initiate wheel from file
+
+void loadFileWheel(char* filename, int *size){
+    FILE *fp;  
+     
+    fp = fopen(filename, "r");
+    fscanf(fp, "%d", size);
+
+    wheel = (int **)malloc((*size+1) * sizeof(int *));
+    
+    for (int i=0; i<(*size+1); i++){
+         wheel[i] = (int *)malloc(2 * sizeof(int));
+    }
+
+    int i = 0;
+    int j = 0;
+
+    int temp;
+    while(fscanf(fp, "%d", &temp)!=EOF){  
+        if(j%2==0){
+            wheel[i][0] = temp;
+        }
+        else{
+            wheel[i][1] = temp;
+            i++;
+        }
+        j++;  
+    }
+    
+    fclose(fp);
+}
+
+// Initiate pilot from file
+
+void loadFilePilot(char* filename, int *size){
+    FILE *fp;  
+     
+    fp = fopen(filename, "r");
+    fscanf(fp, "%d", size);
+
+    pilot = (int **)malloc((*size+1) * sizeof(int *));
+    
+    for (int i=0; i<(*size+1); i++){
+         pilot[i] = (int *)malloc(2 * sizeof(int));
+    }
+
+    int i = 0;
+    int j = 0;
+
+    int temp;
+    while(fscanf(fp, "%d", &temp)!=EOF){  
+        if(j%2==0){
+            pilot[i][0] = temp;
+        }
+        else{
+            pilot[i][1] = temp;
+            i++;
+        }
+        j++;  
+    }
+    
+    fclose(fp);
+}
+
 // Calculate center of plane
 
 void findCenter(int size, int *centerX, int *centerY){
@@ -344,6 +510,84 @@ void findCenter(int size, int *centerX, int *centerY){
     *centerY = minY + (maxY - minY)/2;
 }
 
+// Bounce thread
+
+int findLowestY(int n) {
+    int minY = wheel[0][1];
+    for (int i=1; i<n; i++) {
+        if (wheel[i][1] > minY) {
+            minY = wheel[i][1];
+        }
+    }
+    return minY;
+}
+
+void bounce (int n, int gravity, int bounceCount, int c1, int c2, int c3) {
+    int currentY = findLowestY(n);
+    int acc;
+    while (bounceCount > 0) {
+        acc = gravity;
+        while ((findLowestY(n) + acc) < yResolution-20 ) {
+            scanLineWheel(n,0,0,0);
+            for (int i=0; i<n; i++) {
+                wheel[i][1] += acc;
+            }
+            scanLineWheel(n,c1,c2,c3);
+            acc += gravity;
+            usleep(50000);
+        }
+        while (acc > 1) {
+            scanLineWheel(n,0,0,0);
+            for (int i=0; i<n; i++) {
+                wheel[i][1] -= acc;
+            }
+            scanLineWheel(n,c1,c2,c3);
+            usleep(50000);
+            acc -= 2 * gravity;
+            if (acc < 1) {
+                acc = 1;
+            }
+        }
+        bounceCount--;
+    }
+    acc = gravity;
+    while ((findLowestY(n) + acc) < yResolution-20 ) {
+        scanLineWheel(n,0,0,0);
+        for (int i=0; i<n; i++) {
+            wheel[i][1] += acc;
+            acc += 1;
+        }
+        scanLineWheel(n,c1,c2,c3);
+        usleep(50000);
+    }
+}
+
+void *bounceWheel(void *arg) {
+    bounce(8,10,5,0,255,0);
+}
+
+// Eject pilot thread
+
+
+
+void *ejectPilot(void *arg) {
+    // int x = xResolution/2;
+    // int y = yResolution-20;
+    // int vox = -10;
+    // int voy = 40;
+    // int a = -2;
+    // int t = 0;
+    // while (y <= yResolution-20 && y > 20 && x > 20 && x < xResolution-20) {
+    //     drawBullet(x,y,0,0,255);
+    //     usleep(100000);
+    //     drawBullet(x,y,0,0,0);
+    //     t++;
+    //     x = xResolution/2 + vox*t;
+    //     y = yResolution-20 - voy*t - a/2*pow(t,2);
+    // }
+    scanLinePilot(22,255,0,0);
+}
+
 // Shoot thread
 
 void drawBullet(int x, int y, int c1, int c2, int c3) {
@@ -359,9 +603,20 @@ void *shoot1(void *arg) {
     int a = -2;
     int t = 0;
     while (y <= yResolution-20 && y > 20 && x > 20 && x < xResolution-20) {
+        if (isSameColor(x,y,blue,green,red)) {
+            life--;
+            if (life == 1) {
+                // Wheel bounce thread
+                pthread_create(threads+4, NULL, bounceWheel, NULL);
+                break;
+            }
+            else if (life == 0) {
+                // Eject pilot thread
+                pthread_create(threads+5, NULL, ejectPilot, NULL);
+                break;
+            }
+        }
         drawBullet(x,y,0,0,255);
-        bullets[0][0] = x;
-        bullets[0][1] = y;
         usleep(100000);
         drawBullet(x,y,0,0,0);
         t++;
@@ -378,9 +633,20 @@ void *shoot2(void *arg) {
     int a = -2;
     int t = 0;
     while (y <= yResolution-20 && y > 20 && x > 20 && x < xResolution-20) {
+        if (isSameColor(x,y,blue,green,red)) {
+            life--;
+            if (life == 1) {
+                // Wheel bounce thread
+                pthread_create(threads+4, NULL, bounceWheel, NULL);
+                break;
+            }
+            else if (life == 0) {
+                // Eject pilot thread
+                pthread_create(threads+5, NULL, ejectPilot, NULL);
+                break;
+            }
+        }
         drawBullet(x,y,0,0,255);
-        bullets[1][0] = x;
-        bullets[1][1] = y;
         usleep(100000);
         drawBullet(x,y,0,0,0);
         t++;
@@ -406,8 +672,6 @@ void *shoot(void *arg) {
     system ("/bin/stty cooked");
 }
 
-// Plane thread
-
 // Main
 
 int main(int argc, char **argv) {
@@ -421,9 +685,9 @@ int main(int argc, char **argv) {
     char *filename = argv[1];
     xResolution = atoi(argv[2]);
     yResolution = atoi(argv[3]);
-    int red = atoi(argv[4]);
-    int green = atoi(argv[5]);
-    int blue = atoi(argv[6]);
+    red = atoi(argv[4]);
+    green = atoi(argv[5]);
+    blue = atoi(argv[6]);
 
     // Open the file for reading and writing
     fbfd = open("/dev/fb0", O_RDWR);
@@ -464,8 +728,12 @@ int main(int argc, char **argv) {
 
     // Main thread
     int size;
+    int wheel_size;
+    int pilot_size;
 
     loadFile(filename, &size);
+    loadFileWheel("wheel.txt", &wheel_size);
+    loadFilePilot("pilot.txt", &pilot_size);
 
     int stillAvailable = 1;
     
