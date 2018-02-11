@@ -8,6 +8,7 @@
 #include <math.h>
 #include <limits.h>
 #include <time.h>
+#include <pthread.h>
 
 int xResolution;
 int yResolution;
@@ -24,6 +25,10 @@ int **rotor;
 int **copyrotor;
 int **true_rotor;
 int **true_copyrotor;
+
+pthread_t threads[7];
+int bullets[2][2];
+int life = 2;
 
 // Draw point
 
@@ -102,7 +107,6 @@ void drawShape(int n, int c1, int c2, int c3) {
     a[n][0]=a[0][0];
     a[n][1]=a[0][1];
    
-    
     for(int i=0;i<n;i++) {
         bresenham(a[i][0],a[i][1],a[i+1][0],a[i+1][1],c1,c2,c3);
     }
@@ -177,52 +181,7 @@ void scanLine(int n, int c1, int c2, int c3) {
     }
 }
 
-void clear(int n){
-	int i,j,k,gd,gm,dy,dx;
-    int x,y,temp;
-    int xi[n];
-    float slope[n];
-
-    // Initiate Variables
-    a[n][0]=a[0][0];
-    a[n][1]=a[0][1];
-    
-    // Calculate slope
-    for(i=0;i<n;i++) {
-        dy=a[i+1][1]-a[i][1];
-        dx=a[i+1][0]-a[i][0];
-        if(dy==0) slope[i]=1.0;
-        if(dx==0) slope[i]=0.0;
-        if((dy!=0)&&(dx!=0)) {
-            slope[i]=(float) dx/dy;
-        }
-    }
-
-    // Fill color
-    for(y=0;y<yResolution;y++) {
-        k=0;
-        // Initiate xi
-        for(i=0;i<n;i++) {
-            if (((a[i][1]<=y)&&(a[i+1][1]>y)) || ((a[i][1]>y)&&(a[i+1][1]<=y))) {
-                xi[k]=(int)(a[i][0]+slope[i]*(y-a[i][1]));
-                k++;
-            }
-        }
-        // Sort xi
-        for(j=0;j<k-1;j++)
-            for(i=0;i<k-1;i++) {
-                if(xi[i]>xi[i+1]) {
-                    temp=xi[i];
-                    xi[i]=xi[i+1];
-                    xi[i+1]=temp;
-                }
-            }
-        // Fill
-        for(i=0;i<k;i+=2) {
-            bresenham(xi[i],y,xi[i+1]+1,y,0,0,0);
-        }
-    }
-}
+// Plane dilatation
 
 void dilatasi(int n, int c1, int c2, int c3, int factor, int centerX, int centerY, int *stillAvailable) {
     int i;
@@ -240,6 +199,8 @@ void dilatasi(int n, int c1, int c2, int c3, int factor, int centerX, int center
     }
 }
 
+// Rotor dilatation
+
 void dilatasi_rotor(int n, int c1, int c2, int c3, int factor, int centerX, int centerY) {
     int i;
     for (i = 0; i < n; i++) {
@@ -251,6 +212,8 @@ void dilatasi_rotor(int n, int c1, int c2, int c3, int factor, int centerX, int 
     }
 }
 
+// Rotor rotation
+
 void rotasi(int centerX, int centerY) {
     int i;
     for (i = 0; i < 4; i++) {
@@ -261,6 +224,8 @@ void rotasi(int centerX, int centerY) {
      	true_rotor[i][1] = (int)((float)(true_copyrotor[i][0]-centerX)*sqrt(2.0)/2.0 + (float)(true_copyrotor[i][1]-centerY)*sqrt(2.0)/2.0) + centerY;
     }
 }
+
+// Create a rotor
 
 void initRotor(int centerX, int centerY, int dimension) {
 	copyrotor = (int **)malloc(4 * sizeof(int *));
@@ -297,6 +262,8 @@ void initRotor(int centerX, int centerY, int dimension) {
     rotasi(centerX,centerY);
 }
 
+// Draw two rotors
+
 void drawRotor(int c1, int c2, int c3, int count, int d) {
 	if (count%2 == 0) {
 		bresenham(copyrotor[0][0],copyrotor[0][1],copyrotor[1][0],copyrotor[1][1],c1,c2,c3);
@@ -311,6 +278,8 @@ void drawRotor(int c1, int c2, int c3, int count, int d) {
 		bresenham(rotor[2][0]+d,rotor[2][1],rotor[3][0]+d,rotor[3][1],c1,c2,c3);
 	}
 }
+
+// Initiate plane from file
 
 void loadFile(char* filename, int *size){
     FILE *fp;  
@@ -346,6 +315,8 @@ void loadFile(char* filename, int *size){
     fclose(fp);
 }
 
+// Calculate center of plane
+
 void findCenter(int size, int *centerX, int *centerY){
 	int maxX = INT_MIN;
     int minX = INT_MAX;
@@ -373,7 +344,72 @@ void findCenter(int size, int *centerX, int *centerY){
     *centerY = minY + (maxY - minY)/2;
 }
 
+// Shoot thread
+
+void drawBullet(int x, int y, int c1, int c2, int c3) {
+    bresenham(x,y-5,x,y+5,c1,c2,c3);
+    bresenham(x-5,y,x+5,y,c1,c2,c3);
+}
+
+void *shoot1(void *arg) {
+    int x = xResolution/2;
+    int y = yResolution-20;
+    int vox = -10;
+    int voy = 40;
+    int a = -2;
+    int t = 0;
+    while (y <= yResolution-20 && y > 20 && x > 20 && x < xResolution-20) {
+        drawBullet(x,y,0,0,255);
+        bullets[0][0] = x;
+        bullets[0][1] = y;
+        usleep(100000);
+        drawBullet(x,y,0,0,0);
+        t++;
+        x = xResolution/2 + vox*t;
+        y = yResolution-20 - voy*t - a/2*pow(t,2);
+    }
+}
+
+void *shoot2(void *arg) {
+    int x = xResolution/2;
+    int y = yResolution-20;
+    int vox = 10;
+    int voy = 40;
+    int a = -2;
+    int t = 0;
+    while (y <= yResolution-20 && y > 20 && x > 20 && x < xResolution-20) {
+        drawBullet(x,y,0,0,255);
+        bullets[1][0] = x;
+        bullets[1][1] = y;
+        usleep(100000);
+        drawBullet(x,y,0,0,0);
+        t++;
+        x = xResolution/2 + vox*t;
+        y = yResolution-20 - voy*t - a/2*pow(t,2);
+    }
+}
+
+void *shoot(void *arg) {
+    system ("/bin/stty raw");
+    char c;
+    while (c = getchar()) {
+        if (c == 'd') {
+            pthread_create(threads+1, NULL, shoot1, NULL);
+        }
+        else if (c == 'j') {
+            pthread_create(threads+2, NULL, shoot2, NULL);
+        }
+        else {
+            break;
+        }
+    }
+    system ("/bin/stty cooked");
+}
+
+// Plane thread
+
 // Main
+
 int main(int argc, char **argv) {
     // Input resolution
     if (argc != 7) {
@@ -423,7 +459,10 @@ int main(int argc, char **argv) {
     }
     printf("The framebuffer device was mapped to memory successfully.\n");
 
-    
+    // Shoot thread
+    pthread_create(threads, NULL, shoot, NULL);
+
+    // Main thread
     int size;
 
     loadFile(filename, &size);
@@ -441,41 +480,35 @@ int main(int argc, char **argv) {
 
     initRotor(592,351,26);
 
-    for (;;) {
+    while (stillAvailable == 1) {
         dilatasi(size,blue,green,red,i,centerX,centerY,&stillAvailable);
         dilatasi_rotor(4,blue,green,red,i,centerX, centerY);
         distance = distance_init*i;
 
-        if (stillAvailable == 1) {
-            scanLine(size,blue,green,red);
-            
-            int count = 0;
-    		drawRotor(blue/2,green/2,red/2,count,distance);
-    		clock_t begin = clock();
-    		for(;;) {
-    			usleep(100000);
-    			drawRotor(255,255,255,count,distance);
-    			count++;
-    			drawRotor(blue/2,green/2,red/2,count,distance);
-    			clock_t end = clock();
-    			double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    			if(time_spent >= 0.001){
-    				break;
-    			}
-    		}
+        scanLine(size,blue,green,red);
+        
+        int count = 0;
+		drawRotor(blue/2,green/2,red/2,count,distance);
+		clock_t begin = clock();
+		for(;;) {
+			usleep(100000);
+			drawRotor(255,255,255,count,distance);
+			count++;
+			drawRotor(blue/2,green/2,red/2,count,distance);
+			clock_t end = clock();
+			double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+			if (time_spent >= 0.001){
+				break;
+			}
+		}
 
-        	clear(size);
-        	drawRotor(0, 0, 0, 1, distance);
-        	drawRotor(0, 0, 0, 2, distance);
-        	i++;
-        }
-        else {
-            break;
-        }
+    	scanLine(size,0,0,0);
+    	drawRotor(0, 0, 0, 1, distance);
+    	drawRotor(0, 0, 0, 2, distance);
+    	i++;
     }
 
-    
-    
+    while(1);
 
     munmap(fbp, screensize);
     sleep(5);
